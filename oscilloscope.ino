@@ -19,7 +19,7 @@ void loop()
   
   //timing
   if (now - lastSample < sampleRate){ return; }
-  else { lastSample += now; }
+  else { lastSample = now; }
   
   //determine voltage over connection
   int pinVal = analogRead(INPUT_PIN);
