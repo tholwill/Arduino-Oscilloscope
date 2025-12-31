@@ -23,9 +23,9 @@ void loop()
   
   //determine voltage over connection
   int pinVal = analogRead(INPUT_PIN);
-  float sensorVoltage = pinVal * 5.0 / 1023.0;
-  float voltage = sensorVoltage * (R1 + R2) / R2;
+  //float sensorVoltage = pinVal * 5.0 / 1023.0;
+  //float voltage = sensorVoltage * (R1 + R2) / R2;
   
   //plot to serial monitor
-  Serial.println(voltage);
+  Serial.println(pinVal);
 }
