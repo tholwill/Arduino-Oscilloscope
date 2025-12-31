@@ -17,7 +17,7 @@ fig, ax = plt.subplots()
 (line,) = ax.plot(x, [0]*buffer_size, color="blue")
 
 ax.set_xlim(0,5000) 
-ax.set_ylim(0,10) #10 is the hypothetical max voltage the device can read
+ax.set_ylim(0,10) #10V is the hypothetical max voltage the device can read
 
 plt.ion()
 
@@ -32,19 +32,20 @@ def updateFigure(data):
     fig.canvas.flush_events()
 
 try:
+    #connect to serial port
     print(f"Attempting to establish connection to {port} at {baud_rate}.")
-
     ser = serial.Serial(port, baud_rate)
     time.sleep(2) #time for connection to properly establish
-
     print(f"Connection established successfully.")
 
     while True:
+        #read new data
         rawData = ser.readline()
         decodedData = rawData.decode("utf-8").strip()
 
         buffer.append(float(decodedData))
 
+        #update figure
         now = time.perf_counter()
         if (now - last_render) >= render_interval:
             last_render = now
