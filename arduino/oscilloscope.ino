@@ -26,6 +26,6 @@ void loop()
   float sensorVoltage = pinVal * 5.0 / 1023.0;
   float voltage = sensorVoltage * (R1 + R2) / R2;
   
-  //plotting
+  //plot to serial monitor
   Serial.println(voltage);
 }
