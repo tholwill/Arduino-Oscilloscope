@@ -7,7 +7,7 @@ port = 'COM3' #REPLACE WITH RELEVANT PORT
 baud_rate = 115200
 
 buffer_size = 5000 #0.5s of data at 10kHz
-buffer = deque(maxlen=buffer_size) 
+raw_buffer = deque(maxlen=buffer_size) 
 
 render_interval = 0.02 #seconds (50 fps)
 last_render = time.perf_counter()
@@ -21,7 +21,7 @@ ax.set_ylim(0,10) #10V is the hypothetical max voltage the device can read
 
 plt.ion()
 
-def updateFigure(data):
+def updateFigure(data) -> None:
     y = list(data)
 
     if  len(y) < buffer_size:
@@ -30,6 +30,12 @@ def updateFigure(data):
     line.set_ydata(data)
     fig.canvas.draw_idle()
     fig.canvas.flush_events()
+
+def risingEdgeDetection(data, threshold = 2) -> bool:
+    if len(data) < 2:
+        return False
+
+    return data[-1] > threshold and data[-2] <= data[-1] #return if data has crossed from below to above the threshold
 
 try:
     #connect to serial port
@@ -43,13 +49,13 @@ try:
         rawData = ser.readline()
         decodedData = rawData.decode("utf-8").strip()
 
-        buffer.append(float(decodedData))
+        raw_buffer.append(float(decodedData))
 
         #update figure
         now = time.perf_counter()
         if (now - last_render) >= render_interval:
             last_render = now
-            updateFigure(buffer)
+            updateFigure(raw_buffer)
 
 except serial.SerialException as e:
     print(f"Error opening serial port: {e}")
