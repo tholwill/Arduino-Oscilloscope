@@ -3,7 +3,7 @@
 const int R1 = 10000;
 const int R2 = 10000;
 
-const int sampleRate = 100; //microseconds (10kHz)
+const int samplePeriod = 100; //microseconds (10kHz)
 
 
 void setup()
@@ -18,7 +18,7 @@ void loop()
   static unsigned long lastSample = 0;
   
   //timing
-  if (now - lastSample < sampleRate){ return; }
+  if (now - lastSample < samplePeriod){ return; }
   else { lastSample = now; }
   
   //determine voltage over connection

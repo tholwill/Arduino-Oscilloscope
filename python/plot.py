@@ -1,8 +1,62 @@
 import serial
 import matplotlib.pyplot as plt
 from collections import deque
+import time
 
-ser = serial.Serial('COM3', 115200)
-buffer = deque(maxlen=500)
+port = 'COM3' #REPLACE WITH RELEVANT PORT
+baud_rate = 115200
 
-print(matplotlib.__version__)
+buffer_size = 5000 #0.5s of data at 10kHz
+buffer = deque(maxlen=buffer_size) 
+
+render_interval = 0.02 #seconds (50 fps)
+last_render = time.perf_counter()
+
+x = list(range(buffer_size))
+fig, ax = plt.subplots()
+(line,) = ax.plot(x, [0]*buffer_size, color="blue")
+
+ax.set_xlim(0,5000) 
+ax.set_ylim(0,10) #10 is the hypothetical max voltage the device can read
+
+plt.ion()
+
+def updateFigure(data):
+    y = list(data)
+
+    if  len(y) < buffer_size:
+        y = [0] * (buffer_size - len(y)) + y
+
+    line.set_ydata(data)
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()
+
+try:
+    print(f"Attempting to establish connection to {port} at {baud_rate}.")
+
+    ser = serial.Serial(port, baud_rate)
+    time.sleep(2) #time for connection to properly establish
+
+    print(f"Connection established successfully.")
+
+    while True:
+        rawData = ser.readline()
+        decodedData = rawData.decode("utf-8").strip()
+
+        buffer.append(float(decodedData))
+
+        now = time.perf_counter()
+        if (now - last_render) >= render_interval:
+            last_render = now
+            updateFigure(buffer)
+
+except serial.SerialException as e:
+    print(f"Error opening serial port: {e}")
+except KeyboardInterrupt:
+    print(f"Serial interrupted by user")
+except Exception as e:
+    print(f"An unexpected error occured: {e}")
+finally:
+    if 'ser' in locals() and ser.is_open:
+        ser.close()
+        print("Serial port closed")
