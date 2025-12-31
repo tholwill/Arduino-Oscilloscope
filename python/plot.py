@@ -146,5 +146,5 @@ except Exception as e:
 finally:
     if 'ser' in locals() and ser.is_open:
         ser.close()
-        plt.close(fig)
         print("Serial port closed")
+    plt.close(fig)
