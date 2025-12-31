@@ -1,10 +1,9 @@
 #define INPUT_PIN A0
 
-const int R1 = 10000;
-const int R2 = 10000;
+//const int R1 = 10000;
+//const int R2 = 10000;
 
 const int samplePeriod = 100; //microseconds (10kHz)
-
 
 void setup()
 {
