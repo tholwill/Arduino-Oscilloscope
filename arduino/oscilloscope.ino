@@ -1,30 +1,47 @@
-#define INPUT_PIN A0
+#include <TimerOne.h>
 
-//const int R1 = 10000;
-//const int R2 = 10000;
+#define INPUT_PIN A0
+#define BUFFER_SIZE 64
 
 const int samplePeriod = 100; //microseconds (10kHz)
+
+volatile int uint16_t buffer[BUFFER_SIZE];
+volatile uint8_t head = 0;
+volatile uint8_t tail = 0;
+volatile uint32_t droppedSamples = 0;
+
+void recordVoltage();
 
 void setup()
 {
   pinMode(INPUT_PIN, INPUT);
+
+  //initialize TimerOne interrupts every sample peroid to record voltage
+  Timer1.initialize(samplePeriod);
+  Timer1.attachInterrupt(recordVoltage);
+  
   Serial.begin(115200);
 }
 
-void loop()
-{
-  unsigned long now = micros();
-  static unsigned long lastSample = 0;
-  
-  //timing
-  if (now - lastSample < samplePeriod){ return; }
-  else { lastSample = now; }
-  
-  //determine voltage over connection
-  int pinVal = analogRead(INPUT_PIN);
-  //float sensorVoltage = pinVal * 5.0 / 1023.0;
-  //float voltage = sensorVoltage * (R1 + R2) / R2;
-  
-  //plot to serial monitor
-  Serial.println(pinVal);
+void loop() {
+  //send a sample if a new sample is available
+  while(head != tail) {
+    noInterrupts();
+    uint16_t sample = buffer[tail];
+    tail = (tail +1) & (BUFFER_SIZE - 1); //optimized % operator
+    interrupts();
+
+    Serial.println(sample);
+  }
+}
+
+void recordVoltage() {
+  uint8_t nextHead = (head + 1) & (BUFFER_SIZE - 1); //optimized % operator
+
+  if (nextHead == tail) {
+    droppedSamples++; //buffer is full therefore a sample is lost
+  } else {
+    buffer[head] = analogRead(INPUT_PIN);
+    head = nextHead;
+  }
 }
