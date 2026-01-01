@@ -19,7 +19,7 @@ period_sample_count = 0
 render_interval = 0.05 #seconds (20 fps)
 last_render = time.perf_counter()
 
-waves_displayed = 3
+waves_displayed = 10
 period = None
 
 edge_state = 0; # 0 = LOW, 1 = HIGH
@@ -27,12 +27,10 @@ edge_state = 0; # 0 = LOW, 1 = HIGH
 x = list(range(0,buffer_size))
 fig, ax = plt.subplots()
 (line,) = ax.plot(x, [0]*buffer_size, color="blue")
-ax.set_xlim(0,buffer_size)
 plt.show(block=False)
 
-
-ax.set_xlim(0,5000) 
-ax.set_ylim(0,10) #10V is the hypothetical max voltage the device can read
+ax.set_xlim(0,buffer_size)
+ax.set_ylim(-10,10) #10V is the hypothetical max voltage the device can read
 
 plt.ion()
 
@@ -46,13 +44,12 @@ def updateFigure(data):
     n = min(len(data), 5000)
     y[:n] = data[:n]
 
-
     line.set_ydata(y)
     fig.canvas.draw_idle()
     plt.pause(0.001)
 
 
-def risingEdgeDetection(sample, state, low = 1.8, high = 2.2) -> bool:
+def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
     '''
     uses a schmitt trigger to detech a rising edge action in the signal
     
@@ -73,7 +70,7 @@ def risingEdgeDetection(sample, state, low = 1.8, high = 2.2) -> bool:
 fs = 10_000        # 10 kHz sample rate
 dt = 1 / fs
 t = 0.0
-signal_freq = 2   # 2 Hz
+signal_freq = 60   # 2 Hz
 
 try:
     '''
@@ -97,7 +94,7 @@ try:
         noise_amplitude = 0.2  # volts (adjust)
 
         sample = (
-            2.5
+            2.5 - 2.5
             + 2.5 * math.sin(2 * math.pi * signal_freq * t)
             + random.uniform(-noise_amplitude, noise_amplitude)
         )
