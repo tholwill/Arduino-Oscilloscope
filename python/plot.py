@@ -8,8 +8,9 @@ import math #remove when actually implemented
 
 port = 'COM3' #REPLACE WITH RELEVANT PORT
 baud_rate = 115200
+sample_period = 100e-6 #in seconds (before exponent in microseconds)
 
-buffer_size = 5000 #0.5s of data at 10kHz
+buffer_size = 2000 
 raw_buffer = deque(maxlen=buffer_size) 
 display_buffer = []
 
@@ -29,8 +30,15 @@ fig, ax = plt.subplots()
 (line,) = ax.plot(x, [0]*buffer_size, color="blue")
 plt.show(block=False)
 
-ax.set_xlim(0,buffer_size)
 ax.set_ylim(-10,10) #10V is the hypothetical max voltage the device can read
+
+#set graph x=values
+x_vals = np.arange(buffer_size) * sample_period
+ax.set_xlim(0, max(x_vals))
+line.set_xdata(x_vals)
+
+ax.set_ylabel("Voltage (V)")
+ax.set_xlabel("Time (s)")
 
 plt.ion()
 
@@ -40,14 +48,14 @@ def updateFigure(data):
     
     param data: a list or deque containing all the data to be displayed
     '''
-    y = np.full(5000, np.nan)
-    n = min(len(data), 5000)
+    y = np.full(buffer_size, np.nan)
+    n = min(len(data), buffer_size)
     y[:n] = data[:n]
 
     line.set_ydata(y)
+    line.set_xdata(x_vals[:len(y)])
     fig.canvas.draw_idle()
     plt.pause(0.001)
-
 
 def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
     '''
@@ -66,11 +74,10 @@ def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
 
     return False, state
 
-
-fs = 10_000        # 10 kHz sample rate
+fs = 3_000 #3kHz sample rate
 dt = 1 / fs
 t = 0.0
-signal_freq = 60   # 2 Hz
+signal_freq = 30
 
 try:
     '''
@@ -87,7 +94,7 @@ try:
         decoded_data = raw_data.decode("utf-8").strip()
         
         try:
-            sample = 2.0 * float(decoded_data) * 5.0 / 1023.0
+            sample = 2.0 * float(decoded_data) * 5.0 / 1023.0 #convert from sensor values to voltage values
         except ValueError:
             continue
         '''
@@ -107,7 +114,7 @@ try:
         #detect rising edge
         if edge_detected:
             if triggered_rising_edge == 0:
-                #first edge: arm capture
+                #first edge: start capturing information
                 triggered_rising_edge = 1
                 period_sample_count = 0
                 display_buffer.clear()
