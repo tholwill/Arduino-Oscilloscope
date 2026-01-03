@@ -16,7 +16,7 @@ void setup()
 {
   pinMode(INPUT_PIN, INPUT);
 
-  //initialize TimerOne interrupts every sample peroid to record voltage
+  //initialize TimerOne interrupts every sample period to record voltage
   Timer1.initialize(samplePeriod);
   Timer1.attachInterrupt(recordVoltage);
   
@@ -28,7 +28,7 @@ void loop() {
   while(head != tail) {
     noInterrupts();
     uint16_t sample = buffer[tail];
-    tail = (tail +1) & (BUFFER_SIZE - 1); //optimized % operator
+    tail = (tail + 1) & (BUFFER_SIZE - 1); //optimized % operator
     interrupts();
 
     Serial.println(sample);
