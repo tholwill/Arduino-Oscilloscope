@@ -65,7 +65,7 @@ def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
     '''
     uses a schmitt trigger to detech a rising edge action in the signal
     
-    :param data: sample being tested for rising edge
+    :param sample: sample being tested for rising edge
     :param state: the current state of the program (high/low)
     :return: returns bool that reflects the new state
     :rtype: bool
@@ -109,6 +109,53 @@ dt = 1 / fs
 t = 0.0
 signal_freq = 30
 
+#RANDOM SIGNAL GENERATION CODE FROM CHAT GPT
+def realistic_ac_signal(
+    t,
+    *,
+    base_freq=60.0,          # nominal AC frequency (Hz)
+    amplitude=5.0,           # peak voltage
+    freq_drift=0.2,          # slow frequency drift (Hz)
+    amp_mod_depth=0.05,      # amplitude modulation depth
+    harmonic_level=0.08,     # harmonic distortion amount
+    noise=0.05,              # broadband noise (V)
+    dc_drift=0.1             # slow DC offset drift (V)
+):
+    """
+    Generates a realistic AC-like voltage waveform.
+    """
+
+    # persistent slow-changing state
+    if not hasattr(realistic_ac_signal, "phase"):
+        realistic_ac_signal.phase = 0.0
+
+    # Slow frequency wander
+    inst_freq = base_freq + freq_drift * math.sin(2 * math.pi * 0.2 * t)
+
+    # Advance phase
+    realistic_ac_signal.phase += 2 * math.pi * inst_freq * dt
+
+    # Amplitude modulation (e.g., load variation)
+    amp_env = 1.0 + amp_mod_depth * math.sin(2 * math.pi * 0.5 * t)
+
+    # Fundamental
+    v = amplitude * amp_env * math.sin(realistic_ac_signal.phase)
+
+    # Harmonics (odd harmonics dominate in real systems)
+    v += harmonic_level * amplitude * math.sin(3 * realistic_ac_signal.phase)
+    v += 0.5 * harmonic_level * amplitude * math.sin(5 * realistic_ac_signal.phase)
+
+    # Slow DC offset drift
+    v += dc_drift * math.sin(2 * math.pi * 0.1 * t)
+
+    # Add noise
+    v += random.uniform(-noise, noise)
+
+    return v
+#END OF CHAT GPT CODE
+
+
+
 try:
     '''
     #connect to serial port
@@ -128,15 +175,10 @@ try:
         except ValueError:
             continue
         '''
-        noise_amplitude = 0.2  # volts (adjust)
 
-        sample = (
-            2.5 - 2.5
-            + 2.5 * math.sin(2 * math.pi * signal_freq * t)
-            + random.uniform(-noise_amplitude, noise_amplitude)
-        )
-
+        sample = realistic_ac_signal(t)
         t += dt
+
         raw_buffer.append(sample)
         if mode == 0: #Standard mode
             display_buffer.append(sample)
