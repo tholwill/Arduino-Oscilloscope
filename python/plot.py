@@ -1,10 +1,13 @@
 import serial
+import threading
 import numpy as np
 import random #remove when actually implemented
 import matplotlib.pyplot as plt
 from collections import deque
 import time
 import math #remove when actually implemented
+
+running = True
 
 port = 'COM3' #REPLACE WITH RELEVANT PORT
 baud_rate = 115200
@@ -24,6 +27,7 @@ waves_displayed = 10
 period = None
 
 edge_state = 0; # 0 = LOW, 1 = HIGH
+mode = 0; # 0 = Standard, 1 = Rising edge detection
 
 x = list(range(0,buffer_size))
 fig, ax = plt.subplots()
@@ -74,6 +78,32 @@ def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
 
     return False, state
 
+def switchMode():
+    '''
+    Analyses user input to determine whether the oscilloscope should use rising edge detection or not
+    '''
+    global mode, triggered_rising_edge, period_sample_count, running
+    user_input = None
+    while True:
+        user_input = input()
+        if user_input == 's': #s for "Switch mode"
+            mode = 1 - mode   #swap between 0 and 1
+            
+            display_buffer.clear()
+
+            if mode == 0:
+                print("Mode switched to standard")
+            elif mode == 1:
+                print("Mode switched to rising edge detection")
+                triggered_rising_edge = 0
+                period_sample_count = 0
+        elif user_input == 'q': #exit program
+            running = False
+            print("Program terminated by user")
+
+#allow for continous input monitoring for mode switching
+threading.Thread(target=switchMode, daemon = True).start()
+
 fs = 3_000 #3kHz sample rate
 dt = 1 / fs
 t = 0.0
@@ -87,7 +117,7 @@ try:
     time.sleep(2) #time for connection to properly establish
     print(f"Connection established successfully.")
     '''
-    while True:
+    while running:
         #read new data
         '''
         raw_data = ser.readline()
@@ -108,38 +138,46 @@ try:
 
         t += dt
         raw_buffer.append(sample)
-
-        edge_detected, edge_state = risingEdgeDetection(sample, edge_state)
-
-        #detect rising edge
-        if edge_detected:
-            if triggered_rising_edge == 0:
-                #first edge: start capturing information
-                triggered_rising_edge = 1
-                period_sample_count = 0
-                display_buffer.clear()
-            else: # if not the first edge, must be second edge -> measure period
-                period = period_sample_count
-                period_sample_count = 0
-
-        #Capture samples after trigger
-        if triggered_rising_edge:
-            period_sample_count += 1
+        if mode == 0: #Standard mode
             display_buffer.append(sample)
 
-            # Stop after enough waves collected
-            if period is not None:
-                max_samples = period * waves_displayed
-                if len(display_buffer) >= max_samples:
-                    triggered_rising_edge = 0
-                    period_sample_count = 0
-                    period = None
+            if len(display_buffer) > buffer_size: #check if the display buffer is too long
+                #update figure with full reading and then reset
+                updateFigure(display_buffer)
+                display_buffer.clear()
 
-        #update figure
-        now = time.perf_counter()
-        if (now - last_render) >= render_interval:
-            last_render = now
-            updateFigure(display_buffer)
+        elif mode == 1: #Rising edge mode extra
+            edge_detected, edge_state = risingEdgeDetection(sample, edge_state)
+
+            #detect rising edge
+            if edge_detected:
+                if triggered_rising_edge == 0:
+                    #first edge: start capturing information
+                    triggered_rising_edge = 1
+                    period_sample_count = 0
+                    display_buffer.clear()
+                else: # if not the first edge, must be second edge -> measure period
+                    period = period_sample_count
+                    period_sample_count = 0
+
+            #Capture samples after trigger
+            if triggered_rising_edge:
+                period_sample_count += 1
+                display_buffer.append(sample)
+
+                # Stop after enough waves collected
+                if period is not None:
+                    max_samples = period * waves_displayed
+                    if len(display_buffer) >= max_samples:
+                        triggered_rising_edge = 0
+                        period_sample_count = 0
+                        period = None
+
+            #update figure
+            now = time.perf_counter()
+            if (now - last_render) >= render_interval:
+                last_render = now
+                updateFigure(display_buffer)
 
 except serial.SerialException as e:
     print(f"Error opening serial port: {e}")
