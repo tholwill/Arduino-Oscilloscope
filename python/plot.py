@@ -1,17 +1,15 @@
 import serial
 import threading
 import numpy as np
-import random #remove when actually implemented
 import matplotlib.pyplot as plt
 from collections import deque
 import time
-import math #remove when actually implemented
 
 running = True
 
-port = 'COM3' #REPLACE WITH RELEVANT PORT
+port = 'COM3' 
 baud_rate = 115200
-sample_period = 100e-6 #in seconds (before exponent in microseconds)
+sample_period = 65e-6 #in seconds (before exponent in microseconds)
 
 buffer_size = 2000 
 raw_buffer = deque(maxlen=buffer_size) 
@@ -23,7 +21,7 @@ period_sample_count = 0
 render_interval = 0.05 #seconds (20 fps)
 last_render = time.perf_counter()
 
-waves_displayed = 10
+waves_displayed = 5
 period = None
 
 edge_state = 0; # 0 = LOW, 1 = HIGH
@@ -34,7 +32,8 @@ fig, ax = plt.subplots()
 (line,) = ax.plot(x, [0]*buffer_size, color="blue")
 plt.show(block=False)
 
-ax.set_ylim(-10,10) #10V is the hypothetical max voltage the device can read
+ax.set_ylim(0,3) #10V is the hypothetical max voltage the device can read
+                 #However with the current setup I am using 3 is more useful
 
 #set graph x=values
 x_vals = np.arange(buffer_size) * sample_period
@@ -61,7 +60,7 @@ def updateFigure(data):
     fig.canvas.draw_idle()
     plt.pause(0.001)
 
-def risingEdgeDetection(sample, state, low = 1.70, high = 2.3) -> bool:
+def risingEdgeDetection(sample, state, low = 1.20, high = 1.4) -> bool:
     '''
     uses a schmitt trigger to detech a rising edge action in the signal
     
@@ -101,94 +100,36 @@ def switchMode():
             running = False
             print("Program terminated by user")
 
-#allow for continous input monitoring for mode switching
+#allow for continuous input monitoring for mode switching
 threading.Thread(target=switchMode, daemon = True).start()
 
-fs = 3_000 #3kHz sample rate
-dt = 1 / fs
-t = 0.0
-signal_freq = 30
-
-#RANDOM SIGNAL GENERATION CODE FROM CHAT GPT
-def realistic_ac_signal(
-    t,
-    *,
-    base_freq=60.0,          # nominal AC frequency (Hz)
-    amplitude=5.0,           # peak voltage
-    freq_drift=0.2,          # slow frequency drift (Hz)
-    amp_mod_depth=0.05,      # amplitude modulation depth
-    harmonic_level=0.08,     # harmonic distortion amount
-    noise=0.05,              # broadband noise (V)
-    dc_drift=0.1             # slow DC offset drift (V)
-):
-    """
-    Generates a realistic AC-like voltage waveform.
-    """
-
-    # persistent slow-changing state
-    if not hasattr(realistic_ac_signal, "phase"):
-        realistic_ac_signal.phase = 0.0
-
-    # Slow frequency wander
-    inst_freq = base_freq + freq_drift * math.sin(2 * math.pi * 0.2 * t)
-
-    # Advance phase
-    realistic_ac_signal.phase += 2 * math.pi * inst_freq * dt
-
-    # Amplitude modulation (e.g., load variation)
-    amp_env = 1.0 + amp_mod_depth * math.sin(2 * math.pi * 0.5 * t)
-
-    # Fundamental
-    v = amplitude * amp_env * math.sin(realistic_ac_signal.phase)
-
-    # Harmonics (odd harmonics dominate in real systems)
-    v += harmonic_level * amplitude * math.sin(3 * realistic_ac_signal.phase)
-    v += 0.5 * harmonic_level * amplitude * math.sin(5 * realistic_ac_signal.phase)
-
-    # Slow DC offset drift
-    v += dc_drift * math.sin(2 * math.pi * 0.1 * t)
-
-    # Add noise
-    v += random.uniform(-noise, noise)
-
-    return v
-#END OF CHAT GPT CODE
-
-
-
 try:
-    '''
     #connect to serial port
     print(f"Attempting to establish connection to {port} at {baud_rate}.")
     ser = serial.Serial(port, baud_rate)
     time.sleep(2) #time for connection to properly establish
     print(f"Connection established successfully.")
-    '''
+    
     while running:
         #read new data
-        '''
         raw_data = ser.readline()
         decoded_data = raw_data.decode("utf-8").strip()
         
         try:
-            sample = 2.0 * float(decoded_data) * 5.0 / 1023.0 #convert from sensor values to voltage values
+            sample = float(decoded_data) * 5.0 / 1023.0 #convert from sensor values to voltage values
         except ValueError:
             continue
-        '''
-
-        sample = realistic_ac_signal(t)
-        t += dt
 
         raw_buffer.append(sample)
         if mode == 0: #Standard mode
             display_buffer.append(sample)
+            
+            now = time.perf_counter()
+            if (now - last_render) >= render_interval:
+                last_render = now
+                updateFigure(list(raw_buffer))
 
-            if len(display_buffer) > buffer_size: #check if the display buffer is too long
-                #update figure with full reading and then reset
-                updateFigure(display_buffer)
-                display_buffer.clear()
-
-        elif mode == 1: #Rising edge mode extra
+        elif mode == 1: #Rising edge mode
             edge_detected, edge_state = risingEdgeDetection(sample, edge_state)
 
             #detect rising edge
