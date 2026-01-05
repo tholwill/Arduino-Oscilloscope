@@ -9,7 +9,7 @@ running = True
 
 port = 'COM3' 
 baud_rate = 115200
-sample_period = 65e-6 #in seconds (before exponent in microseconds)
+sample_period = 100e-6 #in seconds (before exponent in microseconds)
 
 buffer_size = 2000 
 raw_buffer = deque(maxlen=buffer_size) 
@@ -60,7 +60,7 @@ def updateFigure(data):
     fig.canvas.draw_idle()
     plt.pause(0.001)
 
-def risingEdgeDetection(sample, state, low = 1.20, high = 1.4) -> bool:
+def risingEdgeDetection(sample, state, low = 1, high = 1.2) -> bool:
     '''
     uses a schmitt trigger to detech a rising edge action in the signal
     
