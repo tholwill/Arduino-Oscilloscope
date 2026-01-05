@@ -12,14 +12,13 @@ volatile uint8_t head = 0;
 volatile uint8_t tail = 0;
 volatile uint32_t droppedSamples = 0;
 
-const float frequency = 120.0;  // Hz
+const float frequency = 30.0;  // Hz
 const int amplitude = 127;     // PWM amplitude
 const int offset = 128;        // PWM midpoint
-const int samplesPerCycle = 128; // higher resolution for smoother sine wave
 
-unsigned long lastUpdate = 0;
-int sampleIndex = 0;
-unsigned long sampleInterval;    //microseconds for each sample
+const float sampleRate = 1000000.0 / samplePeriod; // 0kHz
+volatile float phase = 0.0;
+volatile float phaseIncrement;
 
 void recordVoltage();
 
@@ -28,7 +27,7 @@ void setup()
   pinMode(INPUT_PIN, INPUT);
   pinMode(OUTPUT_PIN, OUTPUT);
 
-  sampleInterval = 1000000UL / (frequency * samplesPerCycle); // microseconds
+  phaseIncrement = 2.0 * PI * frequency / sampleRate;
 
   //initialize TimerOne interrupts every sample period to record voltage
   Timer1.initialize(samplePeriod);
@@ -40,17 +39,12 @@ void setup()
 void loop() {
 unsigned long now = micros();
 
-  //Sine wave output
-  if (now - lastUpdate >= sampleInterval) {
-    lastUpdate += sampleInterval;
+  //sine wave output 
+  phase += phaseIncrement;
+  if (phase >= 2.0 * PI) phase -= 2.0 * PI;
 
-    float angle = 2.0 * PI * sampleIndex / samplesPerCycle;
-    int value = offset + amplitude * sin(angle);
-    analogWrite(OUTPUT_PIN, value);
-
-    sampleIndex++;
-    if (sampleIndex >= samplesPerCycle) sampleIndex = 0;
-  }
+  int value = offset + amplitude * sin(phase);
+  analogWrite(OUTPUT_PIN, value);
   
   //send a sample if a new sample is available
   if(head != tail) {
