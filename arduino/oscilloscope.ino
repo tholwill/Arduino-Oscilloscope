@@ -37,9 +37,9 @@ void setup()
 }
 
 void loop() {
-unsigned long now = micros();
+  unsigned long now = micros();
 
-  //sine wave output 
+  //sine wave output (for testing purposes)
   phase += phaseIncrement;
   if (phase >= 2.0 * PI) phase -= 2.0 * PI;
 
