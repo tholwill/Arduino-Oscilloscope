@@ -9,12 +9,16 @@ running = True
 
 port = 'COM3' 
 baud_rate = 115200
-sample_period = 100e-6 #in seconds (before exponent in microseconds)
+sample_period = 100e-6 # in seconds (before exponent in microseconds)
+
+voltage_bias = 2.50 # the voltage bias from the circuit
 
 buffer_size = 2000 
 raw_buffer = deque(maxlen=buffer_size) 
 display_buffer = []
 
+trigger_Val = 1.0 # the height for the rising edge trigger
+trigger_Range = 0.1 # the range for the schmitt trigger
 triggered_rising_edge = 0
 period_sample_count = 0
 
@@ -32,7 +36,7 @@ fig, ax = plt.subplots()
 (line,) = ax.plot(x, [0]*buffer_size, color="blue")
 plt.show(block=False)
 
-ax.set_ylim(0,3) #10V is the hypothetical max voltage the device can read
+ax.set_ylim(-10,10) #10V is the hypothetical max voltage the device can read
                  #However with the current setup I am using 3 is more useful
 
 #set graph x=values
@@ -60,19 +64,21 @@ def updateFigure(data):
     fig.canvas.draw_idle()
     plt.pause(0.001)
 
-def risingEdgeDetection(sample, state, low = 1, high = 1.2) -> bool:
+def risingEdgeDetection(sample, state,  val = trigger_Val, range = trigger_Range) -> bool:
     '''
     uses a schmitt trigger to detech a rising edge action in the signal
     
     :param sample: sample being tested for rising edge
     :param state: the current state of the program (high/low)
+    param val: the voltage value for the rising edge trigger
+    param range: the voltage range for the schmitt trigger (prevents noise from causing false triggers)
     :return: returns bool that reflects the new state
     :rtype: bool
     '''
-    if state == 0 and sample >= high:
+    if state == 0 and sample >= (trigger_Val + trigger_Range):
         return True, 1
 
-    if state == 1 and sample <= low:
+    if state == 1 and sample <= (trigger_Val - trigger_Range):
         return False, 0
 
     return False, state
@@ -81,7 +87,7 @@ def switchMode():
     '''
     Analyses user input to determine whether the oscilloscope should use rising edge detection or not
     '''
-    global mode, triggered_rising_edge, period_sample_count, running
+    global mode, triggered_rising_edge, period_sample_count, running, trigger_Val, trigger_Range, waves_displayed
     user_input = None
     while True:
         user_input = input()
@@ -96,9 +102,30 @@ def switchMode():
                 print("Mode switched to rising edge detection")
                 triggered_rising_edge = 0
                 period_sample_count = 0
+
         elif user_input == 'q': #exit program
             running = False
             print("Program terminated by user")
+
+        elif user_input.startswith('t '): #set trigger value
+            try:
+                trigger_Val = float(user_input.split()[1])
+                print(f"Trigger value set to {trigger_Val}V")
+            except ValueError:
+                print("Invalid trigger value. Please enter a valid number.")
+
+        elif user_input.startswith('r '): #set trigger range
+            try:
+                trigger_Range = float(user_input.split()[1])
+                print(f"Trigger range set to {trigger_Range}V")
+            except ValueError:
+                print("Invalid trigger value. Please enter a valid number.")
+        elif user_input.startswith('w '): #set number of waves to display
+            try:
+                waves_displayed = int(user_input.split()[1])
+                print(f"Number of waves to display set to {waves_displayed}")
+            except ValueError:
+                print("Invalid number of waves. Please enter a valid integer.")
 
 #allow for continuous input monitoring for mode switching
 threading.Thread(target=switchMode, daemon = True).start()
@@ -116,7 +143,7 @@ try:
         decoded_data = raw_data.decode("utf-8").strip()
         
         try:
-            sample = float(decoded_data) * 5.0 / 1023.0 #convert from sensor values to voltage values
+            sample = ((float(decoded_data) * 5.0 / 1023.0) - voltage_bias) * 45.4545; #convert from sensor values to voltage values
         except ValueError:
             continue
 
